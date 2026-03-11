@@ -12,6 +12,8 @@ public class Sistema {
     private int opcao = 0;
 
     private List<Livro> livros = new ArrayList<>();
+    private List<Cliente> clientes = new ArrayList<>();
+
 
     public Sistema() {
     }
@@ -52,17 +54,29 @@ public class Sistema {
 
 
         print("Digite o nome do livro: ");
-        nome = scan.next();
+        scan.next();
+            nome = scan.nextLine();
 
         Livro livro = new Livro(id, nome);
-        livros.add(livro);
+            livros.add(livro);
     }
 
     private void cadastrarCliente() {
+        int id = clientes.size() + 1;
+        String nome = "";
+
+        print("Digite o nome do cliente: ");
+        scan.next();
+            nome = scan.nextLine();
+
+        Cliente cliente = new Cliente(id, nome);
+            clientes.add(cliente);
     }
 
     public void iniciar() {
         bemVindo();
+        opcoes();
+
 
     }
 
