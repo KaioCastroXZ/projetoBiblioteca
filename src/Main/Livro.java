@@ -4,6 +4,7 @@ public class Livro {
 
     private int id;
     private String nome;
+    private boolean disponivel = true;
 
     public Livro() {
     }
@@ -27,5 +28,17 @@ public class Livro {
 
     public void setNome(String nome) {
         this.nome = nome;
+    }
+
+    public boolean isDisponivel() {
+        return disponivel;
+    }
+
+    public void marcarEmprestado() {
+        this.disponivel = false;
+    }
+
+    public void marcarDevolvido() {
+        this.disponivel = true;
     }
 }

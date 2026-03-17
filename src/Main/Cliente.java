@@ -8,6 +8,7 @@ public class Cliente {
     private String nome;
 
     private List<Multa> multas = new ArrayList<>();
+    private List<Emprestimo> historicoEmprestimos = new ArrayList<>();
 
     private Cliente(){}
 
@@ -30,5 +31,47 @@ public class Cliente {
 
     public void setNome(String nome) {
         this.nome = nome;
+    }
+
+    public List<Multa> getMultas() {
+        return multas;
+    }
+
+    public List<Emprestimo> getHistoricoEmprestimos() {
+        return historicoEmprestimos;
+    }
+
+    public int registrarMulta(double valor) {
+        int idMulta = multas.size() + 1;
+        multas.add(new Multa(idMulta, valor));
+        return idMulta;
+    }
+
+    public double getValorMultasPendentes() {
+        double total = 0.0;
+        for (Multa multa : multas) {
+            if (!multa.isPaga()) {
+                total += multa.getValor();
+            }
+        }
+        return total;
+    }
+
+    public boolean temMultasPendentes() {
+        return getValorMultasPendentes() > 0.0;
+    }
+
+    public boolean pagarMulta(int idMulta) {
+        for (Multa multa : multas) {
+            if (multa.getId() == idMulta && !multa.isPaga()) {
+                multa.pagar();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void registrarEmprestimo(Emprestimo emprestimo) {
+        historicoEmprestimos.add(emprestimo);
     }
 }
