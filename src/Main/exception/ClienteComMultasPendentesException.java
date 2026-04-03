@@ -1,4 +1,4 @@
-package main;
+package main.exception;
 
 public class ClienteComMultasPendentesException extends Exception {
     public ClienteComMultasPendentesException(String message) {

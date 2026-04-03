@@ -1,4 +1,4 @@
-package main;
+package main.exception;
 
 public class LivroIndisponivelException extends Exception {
     public LivroIndisponivelException(String message) {

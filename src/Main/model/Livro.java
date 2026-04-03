@@ -1,13 +1,10 @@
-package main;
+package main.model;
 
 public class Livro {
 
     private int id;
     private String nome;
     private boolean disponivel = true;
-
-    public Livro() {
-    }
 
     public Livro(int id, String nome) {
         this.id = id;

@@ -1,13 +1,11 @@
-package main;
+package main.model;
 
 public class Multa {
     private int id;
     private double valor;
     private boolean paga;
 
-    public Multa(){}
-
-    public Multa(int id, double valor){
+    public Multa(int id, double valor) {
         this.id = id;
         this.valor = valor;
         this.paga = false;

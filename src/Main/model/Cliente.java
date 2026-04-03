@@ -1,4 +1,5 @@
-package main;
+package main.model;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -6,11 +7,8 @@ public class Cliente {
 
     private int id;
     private String nome;
-
-    private List<Multa> multas = new ArrayList<>();
-    private List<Emprestimo> historicoEmprestimos = new ArrayList<>();
-
-    private Cliente(){}
+    private final List<Multa> multas = new ArrayList<>();
+    private final List<Emprestimo> historicoEmprestimos = new ArrayList<>();
 
     public Cliente(int id, String nome) {
         this.id = id;
@@ -73,5 +71,24 @@ public class Cliente {
 
     public void registrarEmprestimo(Emprestimo emprestimo) {
         historicoEmprestimos.add(emprestimo);
+    }
+
+    public Emprestimo buscarEmprestimoPorId(int emprestimoId) {
+        for (Emprestimo emprestimo : historicoEmprestimos) {
+            if (emprestimo.getId() == emprestimoId) {
+                return emprestimo;
+            }
+        }
+        return null;
+    }
+
+    public int getQuantidadeEmprestimosEmAberto() {
+        int quantidade = 0;
+        for (Emprestimo emprestimo : historicoEmprestimos) {
+            if (!emprestimo.isDevolvido()) {
+                quantidade++;
+            }
+        }
+        return quantidade;
     }
 }
