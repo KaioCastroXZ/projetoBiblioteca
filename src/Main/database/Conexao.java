@@ -5,9 +5,9 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 
 public class Conexao {
-    private static final String URL = getEnvOrDefault("DB_URL", "jdbc:postgresql://localhost:5432/meubanco");
-    private static final String USUARIO = getEnvOrDefault("DB_USER", "usuario");
-    private static final String SENHA = getEnvOrDefault("DB_PASSWORD", "senha");
+    private static final String URL = getEnvOrDefault("DB_URL", "jdbc:postgresql://127.0.0.1:5432/meubanco");
+    private static final String USUARIO = getEnvOrDefault("DB_USER", "postgres");
+    private static final String SENHA = getEnvOrDefault("DB_PASSWORD", "0123456");
 
     private Conexao() {
     }
