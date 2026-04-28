@@ -31,6 +31,10 @@ public class Livro {
         return disponivel;
     }
 
+    public void setDisponivel(boolean disponivel) {
+        this.disponivel = disponivel;
+    }
+
     public void marcarEmprestado() {
         this.disponivel = false;
     }
