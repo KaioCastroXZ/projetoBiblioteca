@@ -36,6 +36,14 @@ public class BibliotecaController {
         this.multaDAO = new JdbcMultaDAO();
     }
 
+    public BibliotecaController(LivroDAO livroDAO, UsuarioDAO usuarioDAO,
+                                EmprestimoDAO emprestimoDAO, MultaDAO multaDAO) {
+        this.livroDAO = livroDAO;
+        this.usuarioDAO = usuarioDAO;
+        this.emprestimoDAO = emprestimoDAO;
+        this.multaDAO = multaDAO;
+    }
+
     public Livro cadastrarLivro(String nome) {
         try {
             return livroDAO.inserir(new Livro(0, nome));
