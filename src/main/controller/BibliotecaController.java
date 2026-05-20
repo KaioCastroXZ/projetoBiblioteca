@@ -30,14 +30,15 @@ public class BibliotecaController {
     private final MultaDAO multaDAO;
 
     public BibliotecaController() {
-        this.livroDAO = new JdbcLivroDAO();
-        this.usuarioDAO = new JdbcUsuarioDAO();
-        this.emprestimoDAO = new JdbcEmprestimoDAO();
-        this.multaDAO = new JdbcMultaDAO();
+        this(new JdbcLivroDAO(), new JdbcUsuarioDAO(), new JdbcEmprestimoDAO(), new JdbcMultaDAO());
     }
 
-    public BibliotecaController(LivroDAO livroDAO, UsuarioDAO usuarioDAO,
-                                EmprestimoDAO emprestimoDAO, MultaDAO multaDAO) {
+    public BibliotecaController(
+            LivroDAO livroDAO,
+            UsuarioDAO usuarioDAO,
+            EmprestimoDAO emprestimoDAO,
+            MultaDAO multaDAO
+    ) {
         this.livroDAO = livroDAO;
         this.usuarioDAO = usuarioDAO;
         this.emprestimoDAO = emprestimoDAO;
