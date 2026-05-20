@@ -684,4 +684,198 @@ class BibliotecaControllerTest {
 
         assertDoesNotThrow(() -> controller.cadastrarEmprestimo(1, 1, new Date(), new Date(), true));
     }
+
+    @Test
+    void cadastrarEmprestimoAbertoDeveMarcarLivroComoEmprestado() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+        Livro livro = new Livro(1, "Clean Code");
+        Emprestimo salvo = new Emprestimo(1, 1, livro, new Date(), new Date());
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(livroDAO.buscarPorId(1)).thenReturn(Optional.of(livro));
+        when(multaDAO.listarPorUsuario(1)).thenReturn(Collections.emptyList());
+        when(emprestimoDAO.inserir(any(Emprestimo.class))).thenReturn(salvo);
+
+        controller.cadastrarEmprestimo(1, 1, new Date(), new Date(), false);
+
+        assertFalse(livro.isDisponivel());
+        verify(livroDAO).atualizar(livro);
+    }
+
+    @Test
+    void cadastrarEmprestimoDeveRetornarFalseQuandoDAORetornaIdInvalido() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+        Livro livro = new Livro(1, "Clean Code");
+        Emprestimo salvo = new Emprestimo(0, 1, livro, new Date(), new Date());
+        salvo.setDevolvido(true);
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(livroDAO.buscarPorId(1)).thenReturn(Optional.of(livro));
+        when(emprestimoDAO.inserir(any(Emprestimo.class))).thenReturn(salvo);
+
+        boolean resultado = controller.cadastrarEmprestimo(1, 1, new Date(), new Date(), true);
+
+        assertFalse(resultado);
+    }
+
+    @Test
+    void devolverLivroDeveRetornarFalseQuandoAtualizacaoDoEmprestimoFalha() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+        Livro livro = new Livro(1, "Clean Code");
+        Emprestimo emprestimo = new Emprestimo(1, 1, livro, new Date(), new Date());
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(emprestimoDAO.buscarPorId(1)).thenReturn(Optional.of(emprestimo));
+        when(emprestimoDAO.atualizar(emprestimo)).thenReturn(false);
+
+        boolean resultado = controller.devolverLivro(1, 1);
+
+        assertFalse(resultado);
+        verify(livroDAO, never()).atualizar(any());
+    }
+
+    @Test
+    void buscarLivroPorIdDeveLancarIllegalStateExceptionQuandoDAOLancaSQLException() throws SQLException {
+        when(livroDAO.buscarPorId(1)).thenThrow(new SQLException("Erro"));
+
+        assertThrows(IllegalStateException.class, () -> controller.buscarLivroPorId(1));
+    }
+
+    @Test
+    void listarClientesDeveLancarIllegalStateExceptionQuandoDAOFalha() throws SQLException {
+        when(usuarioDAO.listarTodos()).thenThrow(new SQLException("Erro"));
+
+        assertThrows(IllegalStateException.class, () -> controller.listarClientes());
+    }
+
+    @Test
+    void registrarMultaDeveLancarIllegalStateExceptionQuandoDAOFalhaAoInserir() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(multaDAO.inserir(1, 30.0)).thenThrow(new SQLException("Erro"));
+
+        assertThrows(IllegalStateException.class, () -> controller.registrarMulta(1, 30.0));
+    }
+
+    @Test
+    void pagarMultaDeveLancarIllegalStateExceptionQuandoDAOFalhaAoAtualizar() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+        Multa multa = new Multa(1, 30.0);
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(multaDAO.listarPorUsuario(1)).thenReturn(List.of(multa));
+        when(multaDAO.atualizar(multa)).thenThrow(new SQLException("Erro"));
+
+        assertThrows(IllegalStateException.class, () -> controller.pagarMulta(1, 1));
+    }
+
+    @Test
+    void atualizarEmprestimoDeveRetornarFalseQuandoEmprestimoNaoExiste() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+        Livro livro = new Livro(1, "Clean Code");
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(livroDAO.buscarPorId(1)).thenReturn(Optional.of(livro));
+        when(emprestimoDAO.buscarPorId(99)).thenReturn(Optional.empty());
+
+        boolean resultado = controller.atualizarEmprestimo(99, 1, 1, new Date(), new Date(), true);
+
+        assertFalse(resultado);
+        verify(emprestimoDAO, never()).atualizar(any());
+    }
+
+    @Test
+    void atualizarEmprestimoDeveRetornarFalseQuandoDAOFalhaAoAtualizarEmprestimo() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+        Livro livro = new Livro(1, "Clean Code");
+        Emprestimo atual = new Emprestimo(1, 1, livro, new Date(), new Date());
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(livroDAO.buscarPorId(1)).thenReturn(Optional.of(livro));
+        when(emprestimoDAO.buscarPorId(1)).thenReturn(Optional.of(atual));
+        when(emprestimoDAO.atualizar(any(Emprestimo.class))).thenReturn(false);
+
+        boolean resultado = controller.atualizarEmprestimo(1, 1, 1, new Date(), new Date(), true);
+
+        assertFalse(resultado);
+        verify(livroDAO, never()).atualizar(any());
+    }
+
+    @Test
+    void atualizarEmprestimoAbertoComLivroDiferenteDeveLiberarLivroAnterior() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+        Livro livroAnterior = new Livro(1, "Clean Code");
+        livroAnterior.marcarEmprestado();
+        Livro livroNovo = new Livro(2, "Refactoring");
+        Emprestimo atual = new Emprestimo(1, 1, livroAnterior, new Date(), new Date());
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(livroDAO.buscarPorId(2)).thenReturn(Optional.of(livroNovo));
+        when(emprestimoDAO.buscarPorId(1)).thenReturn(Optional.of(atual));
+        when(emprestimoDAO.atualizar(any(Emprestimo.class))).thenReturn(true);
+        when(livroDAO.atualizar(any(Livro.class))).thenReturn(true);
+
+        boolean resultado = controller.atualizarEmprestimo(1, 1, 2, new Date(), new Date(), false);
+
+        assertTrue(resultado);
+        assertTrue(livroAnterior.isDisponivel());
+        assertFalse(livroNovo.isDisponivel());
+        verify(livroDAO).atualizar(livroAnterior);
+        verify(livroDAO).atualizar(livroNovo);
+    }
+
+    @Test
+    void atualizarEmprestimoAbertoComMesmoLivroNaoDeveLiberarLivroAnteriorSeparadamente() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+        Livro livro = new Livro(1, "Clean Code");
+        Emprestimo atual = new Emprestimo(1, 1, livro, new Date(), new Date());
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(livroDAO.buscarPorId(1)).thenReturn(Optional.of(livro));
+        when(emprestimoDAO.buscarPorId(1)).thenReturn(Optional.of(atual));
+        when(emprestimoDAO.atualizar(any(Emprestimo.class))).thenReturn(true);
+        when(livroDAO.atualizar(livro)).thenReturn(true);
+
+        boolean resultado = controller.atualizarEmprestimo(1, 1, 1, new Date(), new Date(), false);
+
+        assertTrue(resultado);
+        verify(livroDAO, times(1)).atualizar(livro);
+    }
+
+    @Test
+    void atualizarEmprestimoDevolvidoDeveMarcarLivroNovoComoDisponivel() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+        Livro livro = new Livro(1, "Clean Code");
+        livro.marcarEmprestado();
+        Emprestimo atual = new Emprestimo(1, 1, livro, new Date(), new Date());
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(livroDAO.buscarPorId(1)).thenReturn(Optional.of(livro));
+        when(emprestimoDAO.buscarPorId(1)).thenReturn(Optional.of(atual));
+        when(emprestimoDAO.atualizar(any(Emprestimo.class))).thenReturn(true);
+        when(livroDAO.atualizar(livro)).thenReturn(true);
+
+        boolean resultado = controller.atualizarEmprestimo(1, 1, 1, new Date(), new Date(), true);
+
+        assertTrue(resultado);
+        assertTrue(livro.isDisponivel());
+    }
+
+    @Test
+    void atualizarEmprestimoDevePropagarRetornoDaAtualizacaoDoLivroNovo() throws Exception {
+        Cliente cliente = new Cliente(1, "João");
+        Livro livro = new Livro(1, "Clean Code");
+        Emprestimo atual = new Emprestimo(1, 1, livro, new Date(), new Date());
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(livroDAO.buscarPorId(1)).thenReturn(Optional.of(livro));
+        when(emprestimoDAO.buscarPorId(1)).thenReturn(Optional.of(atual));
+        when(emprestimoDAO.atualizar(any(Emprestimo.class))).thenReturn(true);
+        when(livroDAO.atualizar(livro)).thenReturn(false);
+
+        boolean resultado = controller.atualizarEmprestimo(1, 1, 1, new Date(), new Date(), false);
+
+        assertFalse(resultado);
+    }
 }
