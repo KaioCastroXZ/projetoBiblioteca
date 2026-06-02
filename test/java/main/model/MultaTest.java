@@ -14,6 +14,13 @@ class MultaTest {
     }
 
     @Test
+    void deveCriarMultaComUsuarioId() {
+        Multa multa = new Multa(1, 7, 25.0);
+
+        assertEquals(7, multa.getUsuarioId());
+    }
+
+    @Test
     void multaCriadaNaoDeveEstarPagaPorPadrao() {
         Multa multa = new Multa(1, 25.0);
         assertFalse(multa.isPaga());
@@ -38,5 +45,13 @@ class MultaTest {
         Multa multa = new Multa(1, 25.0);
         multa.setId(99);
         assertEquals(99, multa.getId());
+    }
+
+    @Test
+    void setUsuarioIdDeveAtualizarUsuarioDaMulta() {
+        Multa multa = new Multa(1, 25.0);
+        multa.setUsuarioId(8);
+
+        assertEquals(8, multa.getUsuarioId());
     }
 }

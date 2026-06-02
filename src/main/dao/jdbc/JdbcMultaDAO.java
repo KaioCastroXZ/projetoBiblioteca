@@ -17,7 +17,7 @@ public class JdbcMultaDAO implements MultaDAO {
     @Override
     public Multa inserir(int usuarioId, double valor) throws SQLException {
         String sql = "INSERT INTO multa (usuario_id, valor, paga) VALUES (?, ?, FALSE) RETURNING id, paga";
-        Multa multa = new Multa(0, valor);
+        Multa multa = new Multa(0, usuarioId, valor);
         try (Connection conn = Conexao.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, usuarioId);
@@ -36,7 +36,7 @@ public class JdbcMultaDAO implements MultaDAO {
 
     @Override
     public Optional<Multa> buscarPorId(int id) throws SQLException {
-        String sql = "SELECT id, valor, paga FROM multa WHERE id = ?";
+        String sql = "SELECT id, usuario_id, valor, paga FROM multa WHERE id = ?";
         try (Connection conn = Conexao.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setInt(1, id);
@@ -51,7 +51,7 @@ public class JdbcMultaDAO implements MultaDAO {
 
     @Override
     public List<Multa> listarPorUsuario(int usuarioId) throws SQLException {
-        String sql = "SELECT id, valor, paga FROM multa WHERE usuario_id = ? ORDER BY id";
+        String sql = "SELECT id, usuario_id, valor, paga FROM multa WHERE usuario_id = ? ORDER BY id";
         List<Multa> multas = new ArrayList<>();
         try (Connection conn = Conexao.getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
@@ -60,6 +60,20 @@ public class JdbcMultaDAO implements MultaDAO {
                 while (rs.next()) {
                     multas.add(mapMulta(rs));
                 }
+            }
+        }
+        return multas;
+    }
+
+    @Override
+    public List<Multa> listarTodos() throws SQLException {
+        String sql = "SELECT id, usuario_id, valor, paga FROM multa ORDER BY id";
+        List<Multa> multas = new ArrayList<>();
+        try (Connection conn = Conexao.getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql);
+             ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                multas.add(mapMulta(rs));
             }
         }
         return multas;
@@ -88,7 +102,7 @@ public class JdbcMultaDAO implements MultaDAO {
     }
 
     private Multa mapMulta(ResultSet rs) throws SQLException {
-        Multa multa = new Multa(rs.getInt("id"), rs.getDouble("valor"));
+        Multa multa = new Multa(rs.getInt("id"), rs.getInt("usuario_id"), rs.getDouble("valor"));
         if (rs.getBoolean("paga")) {
             multa.pagar();
         }

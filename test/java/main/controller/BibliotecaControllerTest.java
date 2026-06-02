@@ -8,10 +8,13 @@ import main.exception.ClienteComMultasPendentesException;
 import main.exception.ClienteNaoEncontradoException;
 import main.exception.LivroIndisponivelException;
 import main.exception.LivroNaoEncontradoException;
+import main.model.Administrador;
 import main.model.Cliente;
 import main.model.Emprestimo;
 import main.model.Livro;
 import main.model.Multa;
+import main.model.TipoUsuario;
+import main.model.Usuario;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -467,6 +470,15 @@ class BibliotecaControllerTest {
         assertFalse(resultado);
     }
 
+    @Test
+    void deletarLivroDeveRetornarFalseQuandoLivroEstaVinculadoAEmprestimo() throws Exception {
+        when(livroDAO.deletar(1)).thenThrow(new SQLException("FK", "23503"));
+
+        boolean resultado = controller.deletarLivro(1);
+
+        assertFalse(resultado);
+    }
+
     // ── atualizarCliente ────────────────────────────────────────────────────
 
     @Test
@@ -492,6 +504,9 @@ class BibliotecaControllerTest {
 
     @Test
     void deletarClienteDeveRetornarTrueEChamarDeletarNoDAO() throws Exception {
+        Cliente cliente = new Cliente(1, "Joao");
+        when(usuarioDAO.buscarUsuarioPorId(1)).thenReturn(Optional.of(cliente));
+        when(emprestimoDAO.listarAbertosPorUsuario(1)).thenReturn(Collections.emptyList());
         when(usuarioDAO.deletar(1)).thenReturn(true);
 
         boolean resultado = controller.deletarCliente(1);
@@ -877,5 +892,149 @@ class BibliotecaControllerTest {
         boolean resultado = controller.atualizarEmprestimo(1, 1, 1, new Date(), new Date(), false);
 
         assertFalse(resultado);
+    }
+
+    @Test
+    void atualizarEmprestimoFechadoMantidoFechadoNaoDeveAlterarDisponibilidadeDoLivro() throws Exception {
+        Cliente cliente = new Cliente(1, "Joao");
+        Livro livro = new Livro(1, "Clean Code");
+        Emprestimo atual = new Emprestimo(1, 1, livro, new Date(), new Date());
+        atual.setDevolvido(true);
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(livroDAO.buscarPorId(1)).thenReturn(Optional.of(livro));
+        when(emprestimoDAO.buscarPorId(1)).thenReturn(Optional.of(atual));
+        when(emprestimoDAO.atualizar(any(Emprestimo.class))).thenReturn(true);
+
+        boolean resultado = controller.atualizarEmprestimo(1, 1, 1, new Date(), new Date(), true);
+
+        assertTrue(resultado);
+        verify(livroDAO, never()).atualizar(any());
+    }
+
+    @Test
+    void cadastrarAdministradorDeveRetornarAdministradorSalvoNoDAO() throws Exception {
+        Administrador esperado = new Administrador(1, "Ana");
+        when(usuarioDAO.inserirAdministrador(any(Administrador.class))).thenReturn(esperado);
+
+        Administrador resultado = controller.cadastrarAdministrador("Ana");
+
+        assertEquals(esperado, resultado);
+    }
+
+    @Test
+    void cadastrarUsuarioDeveCriarAdministradorQuandoTipoForAdministrador() throws Exception {
+        Administrador esperado = new Administrador(1, "Ana");
+        when(usuarioDAO.inserirAdministrador(any(Administrador.class))).thenReturn(esperado);
+
+        Usuario resultado = controller.cadastrarUsuario("Ana", TipoUsuario.ADMINISTRADOR);
+
+        assertInstanceOf(Administrador.class, resultado);
+        assertEquals(TipoUsuario.ADMINISTRADOR, resultado.getTipo());
+    }
+
+    @Test
+    void listarUsuariosDeveRetornarClientesEAdministradoresDoDAO() throws Exception {
+        List<Usuario> usuarios = List.of(new Cliente(1, "Joao"), new Administrador(2, "Ana"));
+        when(usuarioDAO.listarUsuarios()).thenReturn(usuarios);
+
+        List<Usuario> resultado = controller.listarUsuarios();
+
+        assertEquals(2, resultado.size());
+        assertEquals(TipoUsuario.ADMINISTRADOR, resultado.get(1).getTipo());
+    }
+
+    @Test
+    void buscarUsuarioPorIdDeveRetornarUsuarioQuandoEncontrado() throws Exception {
+        Administrador administrador = new Administrador(1, "Ana");
+        when(usuarioDAO.buscarUsuarioPorId(1)).thenReturn(Optional.of(administrador));
+
+        Optional<Usuario> resultado = controller.buscarUsuarioPorId(1);
+
+        assertTrue(resultado.isPresent());
+        assertEquals(TipoUsuario.ADMINISTRADOR, resultado.get().getTipo());
+    }
+
+    @Test
+    void listarTodasMultasDeveRetornarTodasAsMultasDoDAO() throws Exception {
+        List<Multa> multas = List.of(new Multa(1, 1, 30.0), new Multa(2, 2, 20.0));
+        when(multaDAO.listarTodos()).thenReturn(multas);
+
+        List<Multa> resultado = controller.listarTodasMultas();
+
+        assertEquals(2, resultado.size());
+        assertEquals(2, resultado.get(1).getUsuarioId());
+    }
+
+    @Test
+    void atualizarUsuarioDeveAtualizarClienteOuAdministrador() throws Exception {
+        Administrador administrador = new Administrador(1, "Ana");
+        when(usuarioDAO.buscarUsuarioPorId(1)).thenReturn(Optional.of(administrador));
+        when(usuarioDAO.atualizarUsuario(administrador)).thenReturn(true);
+
+        boolean resultado = controller.atualizarUsuario(1, "Renata");
+
+        assertTrue(resultado);
+        assertEquals("Renata", administrador.getNome());
+    }
+
+    @Test
+    void cadastrarLivroDeveRejeitarNomeVazio() {
+        assertThrows(IllegalArgumentException.class, () -> controller.cadastrarLivro("   "));
+    }
+
+    @Test
+    void cadastrarClienteDeveSalvarNomeSemEspacosLaterais() throws Exception {
+        when(usuarioDAO.inserir(any(Cliente.class))).thenAnswer(i -> i.getArgument(0));
+
+        Cliente resultado = controller.cadastrarCliente("  Maria  ");
+
+        assertEquals("Maria", resultado.getNome());
+    }
+
+    @Test
+    void registrarMultaDeveRejeitarValorMenorOuIgualAZero() {
+        assertThrows(IllegalArgumentException.class, () -> controller.registrarMulta(1, 0.0));
+    }
+
+    @Test
+    void cadastrarEmprestimoDeveRejeitarDataDevolucaoAnteriorARetirada() {
+        Date retirada = new Date(2000L);
+        Date devolucao = new Date(1000L);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> controller.cadastrarEmprestimo(1, 1, retirada, devolucao, true));
+    }
+
+    @Test
+    void deletarUsuarioNaoDeveRemoverClienteComEmprestimoAberto() throws Exception {
+        Cliente cliente = new Cliente(1, "Joao");
+        Livro livro = new Livro(1, "Clean Code");
+        Emprestimo emprestimoAberto = new Emprestimo(1, 1, livro, new Date(), new Date());
+
+        when(usuarioDAO.buscarUsuarioPorId(1)).thenReturn(Optional.of(cliente));
+        when(emprestimoDAO.listarAbertosPorUsuario(1)).thenReturn(List.of(emprestimoAberto));
+
+        boolean resultado = controller.deletarUsuario(1);
+
+        assertFalse(resultado);
+        verify(usuarioDAO, never()).deletar(1);
+    }
+
+    @Test
+    void atualizarEmprestimoDeveRejeitarTrocaParaLivroIndisponivel() throws Exception {
+        Cliente cliente = new Cliente(1, "Joao");
+        Livro livroAtual = new Livro(1, "Clean Code");
+        Livro livroNovo = new Livro(2, "Refactoring");
+        livroNovo.marcarEmprestado();
+        Emprestimo atual = new Emprestimo(1, 1, livroAtual, new Date(), new Date());
+
+        when(usuarioDAO.buscarPorId(1)).thenReturn(Optional.of(cliente));
+        when(livroDAO.buscarPorId(2)).thenReturn(Optional.of(livroNovo));
+        when(emprestimoDAO.buscarPorId(1)).thenReturn(Optional.of(atual));
+
+        assertThrows(LivroIndisponivelException.class,
+                () -> controller.atualizarEmprestimo(1, 1, 2, new Date(), new Date(), false));
+        verify(emprestimoDAO, never()).atualizar(any());
     }
 }

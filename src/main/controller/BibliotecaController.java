@@ -12,11 +12,15 @@ import main.exception.ClienteComMultasPendentesException;
 import main.exception.ClienteNaoEncontradoException;
 import main.exception.LivroIndisponivelException;
 import main.exception.LivroNaoEncontradoException;
+import main.model.Administrador;
 import main.model.Cliente;
 import main.model.Emprestimo;
 import main.model.Livro;
 import main.model.Multa;
+import main.model.TipoUsuario;
+import main.model.Usuario;
 
+import java.sql.SQLException;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
@@ -46,19 +50,40 @@ public class BibliotecaController {
     }
 
     public Livro cadastrarLivro(String nome) {
+        String nomeValidado = validarNome(nome, "Nome do livro");
         try {
-            return livroDAO.inserir(new Livro(0, nome));
+            return livroDAO.inserir(new Livro(0, nomeValidado));
         } catch (Exception e) {
             throw new IllegalStateException("Erro ao cadastrar livro.", e);
         }
     }
 
     public Cliente cadastrarCliente(String nome) {
+        String nomeValidado = validarNome(nome, "Nome do cliente");
         try {
-            return usuarioDAO.inserir(new Cliente(0, nome));
+            return usuarioDAO.inserir(new Cliente(0, nomeValidado));
         } catch (Exception e) {
             throw new IllegalStateException("Erro ao cadastrar usuario.", e);
         }
+    }
+
+    public Administrador cadastrarAdministrador(String nome) {
+        String nomeValidado = validarNome(nome, "Nome do administrador");
+        try {
+            return usuarioDAO.inserirAdministrador(new Administrador(0, nomeValidado));
+        } catch (Exception e) {
+            throw new IllegalStateException("Erro ao cadastrar administrador.", e);
+        }
+    }
+
+    public Usuario cadastrarUsuario(String nome, TipoUsuario tipo) {
+        if (tipo == null) {
+            throw new IllegalArgumentException("Tipo de usuario e obrigatorio.");
+        }
+        if (tipo == TipoUsuario.ADMINISTRADOR) {
+            return cadastrarAdministrador(nome);
+        }
+        return cadastrarCliente(nome);
     }
 
     public Emprestimo emprestarLivro(int clienteId, int livroId)
@@ -85,6 +110,7 @@ public class BibliotecaController {
     public boolean cadastrarEmprestimo(int usuarioId, int livroId, Date retirada, Date devolucao, boolean devolvido)
             throws ClienteNaoEncontradoException, LivroNaoEncontradoException,
             LivroIndisponivelException, ClienteComMultasPendentesException {
+        validarPeriodoEmprestimo(retirada, devolucao);
         Cliente usuario = buscarClientePorId(usuarioId);
         Livro livro = buscarLivroPorId(livroId);
         if (!devolvido) {
@@ -106,6 +132,7 @@ public class BibliotecaController {
     }
 
     public int registrarMulta(int clienteId, double valor) throws ClienteNaoEncontradoException {
+        validarValorMulta(valor);
         buscarClientePorId(clienteId);
         try {
             return multaDAO.inserir(clienteId, valor).getId();
@@ -115,6 +142,7 @@ public class BibliotecaController {
     }
 
     public boolean pagarMulta(int clienteId, int multaId) throws ClienteNaoEncontradoException {
+        validarIdPositivo(multaId, "Id da multa");
         buscarClientePorId(clienteId);
         try {
             for (Multa multa : multaDAO.listarPorUsuario(clienteId)) {
@@ -130,6 +158,7 @@ public class BibliotecaController {
     }
 
     public Cliente buscarClientePorId(int id) throws ClienteNaoEncontradoException {
+        validarIdPositivo(id, "Id do cliente");
         try {
             Optional<Cliente> cliente = usuarioDAO.buscarPorId(id);
             if (cliente.isPresent()) {
@@ -141,7 +170,17 @@ public class BibliotecaController {
         throw new ClienteNaoEncontradoException("Cliente nao encontrado.");
     }
 
+    public Optional<Usuario> buscarUsuarioPorId(int id) {
+        validarIdPositivo(id, "Id do usuario");
+        try {
+            return usuarioDAO.buscarUsuarioPorId(id);
+        } catch (Exception e) {
+            throw new IllegalStateException("Erro ao buscar usuario.", e);
+        }
+    }
+
     public Livro buscarLivroPorId(int id) throws LivroNaoEncontradoException {
+        validarIdPositivo(id, "Id do livro");
         try {
             Optional<Livro> livro = livroDAO.buscarPorId(id);
             if (livro.isPresent()) {
@@ -154,6 +193,7 @@ public class BibliotecaController {
     }
 
     public Emprestimo buscarEmprestimoPorId(int id) {
+        validarIdPositivo(id, "Id do emprestimo");
         try {
             return emprestimoDAO.buscarPorId(id).orElse(null);
         } catch (Exception e) {
@@ -164,6 +204,14 @@ public class BibliotecaController {
     public List<Cliente> listarClientes() {
         try {
             return usuarioDAO.listarTodos();
+        } catch (Exception e) {
+            throw new IllegalStateException("Erro ao listar usuarios.", e);
+        }
+    }
+
+    public List<Usuario> listarUsuarios() {
+        try {
+            return usuarioDAO.listarUsuarios();
         } catch (Exception e) {
             throw new IllegalStateException("Erro ao listar usuarios.", e);
         }
@@ -189,6 +237,14 @@ public class BibliotecaController {
         buscarClientePorId(clienteId);
         try {
             return multaDAO.listarPorUsuario(clienteId);
+        } catch (Exception e) {
+            throw new IllegalStateException("Erro ao listar multas.", e);
+        }
+    }
+
+    public List<Multa> listarTodasMultas() {
+        try {
+            return multaDAO.listarTodos();
         } catch (Exception e) {
             throw new IllegalStateException("Erro ao listar multas.", e);
         }
@@ -241,8 +297,9 @@ public class BibliotecaController {
     }
 
     public boolean atualizarLivro(int id, String novoNome) throws LivroNaoEncontradoException {
+        String nomeValidado = validarNome(novoNome, "Nome do livro");
         Livro livro = buscarLivroPorId(id);
-        livro.setNome(novoNome);
+        livro.setNome(nomeValidado);
         try {
             return livroDAO.atualizar(livro);
         } catch (Exception e) {
@@ -251,16 +308,23 @@ public class BibliotecaController {
     }
 
     public boolean deletarLivro(int id) {
+        validarIdPositivo(id, "Id do livro");
         try {
             return livroDAO.deletar(id);
+        } catch (SQLException e) {
+            if (isViolacaoChaveEstrangeira(e)) {
+                return false;
+            }
+            throw new IllegalStateException("Erro ao remover livro.", e);
         } catch (Exception e) {
             throw new IllegalStateException("Erro ao remover livro.", e);
         }
     }
 
     public boolean atualizarCliente(int id, String novoNome) throws ClienteNaoEncontradoException {
+        String nomeValidado = validarNome(novoNome, "Nome do cliente");
         Cliente usuario = buscarClientePorId(id);
-        usuario.setNome(novoNome);
+        usuario.setNome(nomeValidado);
         try {
             return usuarioDAO.atualizar(usuario);
         } catch (Exception e) {
@@ -268,8 +332,40 @@ public class BibliotecaController {
         }
     }
 
-    public boolean deletarCliente(int id) {
+    public boolean atualizarUsuario(int id, String novoNome) {
+        String nomeValidado = validarNome(novoNome, "Nome do usuario");
+        validarIdPositivo(id, "Id do usuario");
         try {
+            Optional<Usuario> usuarioOpt = usuarioDAO.buscarUsuarioPorId(id);
+            if (usuarioOpt.isEmpty()) {
+                return false;
+            }
+
+            Usuario usuario = usuarioOpt.get();
+            usuario.setNome(nomeValidado);
+            return usuarioDAO.atualizarUsuario(usuario);
+        } catch (Exception e) {
+            throw new IllegalStateException("Erro ao atualizar usuario.", e);
+        }
+    }
+
+    public boolean deletarCliente(int id) {
+        return deletarUsuario(id);
+    }
+
+    public boolean deletarUsuario(int id) {
+        validarIdPositivo(id, "Id do usuario");
+        try {
+            Optional<Usuario> usuarioOpt = usuarioDAO.buscarUsuarioPorId(id);
+            if (usuarioOpt.isEmpty()) {
+                return false;
+            }
+
+            if (usuarioOpt.get().getTipo() == TipoUsuario.CLIENTE
+                    && !emprestimoDAO.listarAbertosPorUsuario(id).isEmpty()) {
+                return false;
+            }
+
             return usuarioDAO.deletar(id);
         } catch (Exception e) {
             throw new IllegalStateException("Erro ao remover usuario.", e);
@@ -283,7 +379,8 @@ public class BibliotecaController {
             Date retirada,
             Date devolucao,
             boolean devolvido
-    ) throws ClienteNaoEncontradoException, LivroNaoEncontradoException {
+    ) throws ClienteNaoEncontradoException, LivroNaoEncontradoException, LivroIndisponivelException {
+        validarPeriodoEmprestimo(retirada, devolucao);
         Cliente usuario = buscarClientePorId(usuarioId);
         Livro livroNovo = buscarLivroPorId(livroId);
         Emprestimo atual = buscarEmprestimoPorId(emprestimoId);
@@ -291,10 +388,14 @@ public class BibliotecaController {
             return false;
         }
 
-        try {
-            Livro livroAnterior = atual.getLivro();
-            boolean antigoAberto = !atual.isDevolvido();
+        Livro livroAnterior = atual.getLivro();
+        boolean antigoAberto = !atual.isDevolvido();
+        boolean mudouLivro = livroAnterior.getId() != livroNovo.getId();
+        if (!devolvido && (!antigoAberto || mudouLivro) && !livroNovo.isDisponivel()) {
+            throw new LivroIndisponivelException("Livro solicitado nao esta disponivel.");
+        }
 
+        try {
             Emprestimo editado = new Emprestimo(emprestimoId, usuario.getId(), livroNovo, retirada, devolucao);
             editado.setDevolvido(devolvido);
             boolean atualizou = emprestimoDAO.atualizar(editado);
@@ -302,22 +403,31 @@ public class BibliotecaController {
                 return false;
             }
 
-            if (antigoAberto && livroAnterior.getId() != livroNovo.getId()) {
+            if (antigoAberto && mudouLivro) {
                 livroAnterior.setDisponivel(true);
-                livroDAO.atualizar(livroAnterior);
+                if (!livroDAO.atualizar(livroAnterior)) {
+                    return false;
+                }
             }
 
-            livroNovo.setDisponivel(devolvido);
             if (!devolvido) {
                 livroNovo.marcarEmprestado();
+                return livroDAO.atualizar(livroNovo);
             }
-            return livroDAO.atualizar(livroNovo);
+
+            if (antigoAberto && !mudouLivro) {
+                livroNovo.marcarDevolvido();
+                return livroDAO.atualizar(livroNovo);
+            }
+
+            return true;
         } catch (Exception e) {
             throw new IllegalStateException("Erro ao atualizar emprestimo.", e);
         }
     }
 
     public boolean deletarEmprestimo(int emprestimoId) {
+        validarIdPositivo(emprestimoId, "Id do emprestimo");
         try {
             Optional<Emprestimo> emprestimoOpt = emprestimoDAO.buscarPorId(emprestimoId);
             if (emprestimoOpt.isEmpty()) {
@@ -367,6 +477,38 @@ public class BibliotecaController {
         } catch (ClienteNaoEncontradoException e) {
             throw new IllegalStateException("Erro ao validar emprestimo.", e);
         }
+    }
+
+    private String validarNome(String nome, String campo) {
+        if (nome == null || nome.trim().isEmpty()) {
+            throw new IllegalArgumentException(campo + " e obrigatorio.");
+        }
+        return nome.trim();
+    }
+
+    private void validarIdPositivo(int id, String campo) {
+        if (id <= 0) {
+            throw new IllegalArgumentException(campo + " deve ser positivo.");
+        }
+    }
+
+    private void validarValorMulta(double valor) {
+        if (!Double.isFinite(valor) || valor <= 0.0) {
+            throw new IllegalArgumentException("Valor da multa deve ser maior que zero.");
+        }
+    }
+
+    private void validarPeriodoEmprestimo(Date retirada, Date devolucao) {
+        if (retirada == null || devolucao == null) {
+            throw new IllegalArgumentException("Datas de retirada e devolucao sao obrigatorias.");
+        }
+        if (devolucao.before(retirada)) {
+            throw new IllegalArgumentException("Data de devolucao nao pode ser anterior a data de retirada.");
+        }
+    }
+
+    private boolean isViolacaoChaveEstrangeira(SQLException e) {
+        return "23503".equals(e.getSQLState());
     }
 
     private Date calcularDataDevolucao(Date dataRetirada) {

@@ -13,6 +13,8 @@ public interface MultaDAO {
 
     List<Multa> listarPorUsuario(int usuarioId) throws SQLException;
 
+    List<Multa> listarTodos() throws SQLException;
+
     boolean atualizar(Multa multa) throws SQLException;
 
     boolean deletar(int id) throws SQLException;

@@ -21,8 +21,14 @@ public class DatabaseInitializer {
         String criarTabelaUsuarios = """
                 CREATE TABLE IF NOT EXISTS usuario (
                     id SERIAL PRIMARY KEY,
-                    nome VARCHAR(255) NOT NULL
+                    nome VARCHAR(255) NOT NULL,
+                    tipo VARCHAR(20) NOT NULL DEFAULT 'CLIENTE'
                 )
+                """;
+
+        String adicionarTipoUsuario = """
+                ALTER TABLE usuario
+                ADD COLUMN IF NOT EXISTS tipo VARCHAR(20) NOT NULL DEFAULT 'CLIENTE'
                 """;
 
         String criarTabelaEmprestimos = """
@@ -49,6 +55,7 @@ public class DatabaseInitializer {
              Statement stmt = conn.createStatement()) {
             stmt.execute(criarTabelaLivros);
             stmt.execute(criarTabelaUsuarios);
+            stmt.execute(adicionarTipoUsuario);
             stmt.execute(criarTabelaEmprestimos);
             stmt.execute(criarTabelaMultas);
         } catch (SQLException e) {
